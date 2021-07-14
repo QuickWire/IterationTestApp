@@ -1,6 +1,7 @@
 # IterationTestApp
 Tests performance of various String iteration methods
 
+Typical run looks like this. Make sure to run tests as Release - totally different outcomes otherwise.
 ```
 Starting test, 10000000 iterations set
 (base) foreach =   692 ms
