@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 /// <summary>
 /// Simple string iteration tester, new Span class (struct) works well
 /// 
@@ -30,11 +31,12 @@ namespace IterationTestApp
 		static void IterTest()
 		{
 			string source = "/once/upon/a/time/once/upon/a/time/once/upon/a/time/";
-			int max_loop = 10000000;
+			int max_loop = 100000000;
 
 			Console.WriteLine($"Starting test, {max_loop} iterations set");
 			Stopwatch sw = new Stopwatch();
 			List<TestTime> times = new List<TestTime>();
+			bool add_theSlowOnes = true;
 
 			sw.Start();
 			for (int x = 0; x < max_loop; x++)
@@ -47,6 +49,7 @@ namespace IterationTestApp
 				}
 			}
 			TestTime t_base = new TestTime("(base) foreach", sw.ElapsedMilliseconds);
+			times.Add(t_base);
 
 			sw.Restart();
 			for (int x = 0; x < max_loop; x++)
@@ -109,7 +112,7 @@ namespace IterationTestApp
 			for (int x = 0; x < max_loop; x++)
 			{
 				int count = 0;
-				foreach( var c in source.AsSpan())
+				foreach (var c in source.AsSpan())
 				{
 					if (c == '/')
 						count++;
@@ -118,31 +121,51 @@ namespace IterationTestApp
 			times.Add(new TestTime("foreach Span", sw.ElapsedMilliseconds));
 
 
-			sw.Restart();
-			for (int x = 0; x < max_loop; x++)
+			//new had to try RegEx..
+			if (add_theSlowOnes)
 			{
-				int count = source.Count(c => c == '/');
+				sw.Restart();
+				for (int x = 0; x < max_loop; x++)
+				{
+					int count = source.Split('/').Length - 1;
+				}
+				times.Add(new TestTime("Split", sw.ElapsedMilliseconds));
+
+
+				sw.Restart();
+				for (int x = 0; x < max_loop; x++)
+				{
+					int count = source.Count(c => c == '/');
+				}
+				times.Add(new TestTime("Linq", sw.ElapsedMilliseconds));
+
+
+				sw.Restart();
+				for (int x = 0; x < max_loop; x++)
+				{
+					int count = Regex.Matches(source, @"\/").Count;
+				}
+				times.Add(new TestTime("Regex", sw.ElapsedMilliseconds));
+
+
+				// and a compiled RegEx..
+				var regex = new Regex(@"\/", RegexOptions.Compiled);
+				sw.Restart();
+				for (int x = 0; x < max_loop; x++)
+				{
+					int count = regex.Matches(source).Count;
+				}
+				times.Add(new TestTime("Regex Compiled", sw.ElapsedMilliseconds));
+
+
+				sw.Restart();
+				for (int x = 0; x < max_loop; x++)
+				{
+					int count = source.Length - source.Replace("/", "").Length;
+				}
+				times.Add(new TestTime("Replace", sw.ElapsedMilliseconds));
+
 			}
-			times.Add(new TestTime("Linq", sw.ElapsedMilliseconds));
-
-
-
-			sw.Restart();
-			for (int x = 0; x < max_loop; x++)
-			{
-				int count = source.Split('/').Length - 1;
-			}
-			times.Add(new TestTime("Split", sw.ElapsedMilliseconds));
-
-
-
-			sw.Restart();
-			for (int x = 0; x < max_loop; x++)
-			{
-				int count = source.Length - source.Replace("/", "").Length;
-			}
-			times.Add(new TestTime("Replace", sw.ElapsedMilliseconds));
-
 
 
 			Console.WriteLine($"{t_base.Name,14} = { t_base.T,5} ms ");
@@ -151,7 +174,7 @@ namespace IterationTestApp
 			times.Sort((a, b) => a.T.CompareTo(b.T));
 			foreach (var t in times)
 			{
-				Console.WriteLine($"{t.Name,14} = {t.T,5} ms {(1 - (double)t.T / (double)t_base.T) * 100,6:N1}%");
+				Console.WriteLine($"{t.Name,14} = {t.T,5} ms {(1 - (double)t.T / (double)t_base.T) * 100,8:N1}%");
 			}
 			Console.WriteLine("\ncomplete");
 		}
